@@ -11,6 +11,10 @@
 #include "init.h"
 #include "ui_interface.h"
 #include "checkqueue.h"
+
+#include "scrypt.h"
+#include "main.h"
+
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -22,6 +26,7 @@ using namespace boost;
 // Global state
 //
 
+
 CCriticalSection cs_setpwalletRegistered;
 set<CWallet*> setpwalletRegistered;
 
@@ -31,7 +36,7 @@ CTxMemPool mempool;
 unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
-uint256 hashGenesisBlock("0x12a765e31ffd4059bada1e25190f6e98c99d9714d334efa41a195a7e7e04bfe2");
+uint256 hashGenesisBlock("0x95b7df24cbfe0bdb0b58b0ce029a4206fcc53555762cdae1823a6daa43ec3681");
 static CBigNum bnProofOfWorkLimit(~uint256(0) >> 20); // Faircoin: starting difficulty is 1 / 2^12
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
@@ -54,6 +59,8 @@ int64 CTransaction::nMinTxFee = 100000;
 int64 CTransaction::nMinRelayTxFee = 100000;
 
 CMedianFilter<int> cPeerBlockCounts(8, 0); // Amount of blocks that other nodes claim to have
+
+double GetDifficulty(const CBlockIndex*);
 
 map<uint256, CBlock*> mapOrphanBlocks;
 multimap<uint256, CBlock*> mapOrphanBlocksByPrev;
@@ -577,7 +584,7 @@ bool CTransaction::CheckTransaction(CValidationState &state) const
 
     if (IsCoinBase())
     {
-        if (vin[0].scriptSig.size() < 2 || vin[0].scriptSig.size() > 100)
+        if (vin[0].scriptSig.size() < 2 || vin[0].scriptSig.size() > 200)
             return state.DoS(100, error("CTransaction::CheckTransaction() : coinbase script size"));
     }
     else
@@ -1063,7 +1070,7 @@ uint256 static GetOrphanRoot(const CBlockHeader* pblock)
 
 int64 static GetBlockValue(int nHeight, int64 nFees)
 {
-    int64 nSubsidy = GetDifficulty() * COIN; // payout = difficulty
+    int64 nSubsidy = GetDifficulty(0) * COIN; // payout = difficulty
 
     // Subsidy is cut in half every 840000 blocks, which will occur approximately every 4 years
     // nSubsidy >>= (nHeight / 840000); // Faircoin: 840k blocks in ~4 years
@@ -2164,6 +2171,10 @@ bool CBlock::AcceptBlock(CValidationState &state, CDiskBlockPos *dbp)
         if (nBits != GetNextWorkRequired(pindexPrev, this))
             return state.DoS(100, error("AcceptBlock() : incorrect proof of work"));
 
+        // Check reward TODO
+        //if (nBits != GetNextWorkRequired(pindexPrev, this))
+        //    return state.DoS(100, error("AcceptBlock() : incorrect reward value"));
+
         // Check timestamp against prev
         if (GetBlockTime() <= pindexPrev->GetMedianTimePast())
             return state.Invalid(error("AcceptBlock() : block's timestamp is too early"));
@@ -2723,7 +2734,7 @@ bool LoadBlockIndex()
         pchMessageStart[1] = 0xc1;
         pchMessageStart[2] = 0xb7;
         pchMessageStart[3] = 0xdc;
-        hashGenesisBlock = uint256("0xf5ae71e26c74beacc88382716aced69cddf3dffff24f384e1808905e0188f68f");
+        hashGenesisBlock = uint256("0x0");
     }
 
     //
@@ -2735,6 +2746,7 @@ bool LoadBlockIndex()
     return true;
 }
 
+//void scrypt_1024_1_1_256_sp(const char *input, char *output, char *scratchpad);
 
 bool InitBlockIndex() {
     // Check whether we're already initialized
@@ -2761,7 +2773,7 @@ bool InitBlockIndex() {
         txNew.vin.resize(1);
         txNew.vout.resize(1);
         txNew.vin[0].scriptSig = CScript() << 486604799 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-        txNew.vout[0].nValue = 50 * COIN;
+        txNew.vout[0].nValue = GetDifficulty(0) * COIN;
         txNew.vout[0].scriptPubKey = CScript() << ParseHex("040184710fa689ad5023690c80f3a49c8f13f8d45b8c857fbcbc8bc4a8e4d3eb4b10f4d4604fa08dce601aaf0f470216fe1b51850b4acf21b179c45070ac7b03a9") << OP_CHECKSIG;
         CBlock block;
         block.vtx.push_back(txNew);
@@ -2770,20 +2782,73 @@ bool InitBlockIndex() {
         block.nVersion = 1;
         block.nTime    = 1389606522;
         block.nBits    = 0x1e0ffff0;
-        block.nNonce   = 2084524493;
+        block.nNonce   = 988543;
 
         if (fTestNet)
         {
             block.nTime    = 1389606522;
-            block.nNonce   = 385270584;
+            block.nNonce   = 0;
         }
 
         //// debug print
         uint256 hash = block.GetHash();
-        printf("%s\n", hash.ToString().c_str());
-        printf("%s\n", hashGenesisBlock.ToString().c_str());
-        printf("%s\n", block.hashMerkleRoot.ToString().c_str());
-        assert(block.hashMerkleRoot == uint256("0x97ddfbbae6be97fd6cdf3e7ca13232a3afff2353e29badfab7f73011edd4ced9"));
+        printf("hash  : %s\n", hash.ToString().c_str());
+        printf("hgb   : %s\n", hashGenesisBlock.ToString().c_str());
+        printf("merkel : %s\n", block.hashMerkleRoot.ToString().c_str());
+        assert(block.hashMerkleRoot == uint256("0x1f54046cb49689a1ae9a266fcdc2bfb6972ea0313c49bec4a883d02e04ccd6c4"));
+
+        // If genesis block hash does not match, then generate new genesis hash.
+        if (true && block.GetHash() != hashGenesisBlock)
+        {
+    
+            printf("Searching for genesis block...\n");
+            // This will figure out a valid hash and Nonce if you're
+            // creating a different genesis block:
+            uint256 hashTarget = CBigNum().SetCompact(block.nBits).getuint256();
+            uint256 thash;
+            char scratchpad[SCRYPT_SCRATCHPAD_SIZE];
+
+            loop
+            {
+
+
+
+
+#if defined(USE_SSE2)
+                // Detection would work, but in cases where we KNOW it always has SSE2,
+                // it is faster to use directly than to use a function pointer or conditional.
+#if defined(_M_X64) || defined(__x86_64__) || defined(_M_AMD64) || (defined(MAC_OSX) && defined(__i386__))
+                // Always SSE2: x86_64 or Intel MacOS X
+                scrypt_1024_1_1_256_sp_sse2(BEGIN(pblock->nVersion), BEGIN(thash), scratchpad);
+#else
+                // Detect SSE2: 32bit x86 Linux or Windows
+                scrypt_1024_1_1_256_sp(BEGIN(pblock->nVersion), BEGIN(thash), scratchpad);
+#endif
+#else
+                // Generic scrypt
+                scrypt_1024_1_1_256_sp_generic(BEGIN(block.nVersion), BEGIN(thash), scratchpad);
+#endif
+
+
+                //scrypt_1024_1_1_256_sp(BEGIN(block.nVersion), BEGIN(thash), scratchpad);
+                if (thash <= hashTarget)
+                    break;
+                if ((block.nNonce & 0xFFF) == 0)
+                {
+                    printf("nonce %08X: hash = %s (target = %s)\n", block.nNonce, thash.ToString().c_str(), hashTarget.ToString().c_str());
+                }
+                ++block.nNonce;
+                if (block.nNonce == 0)
+                {
+                    printf("NONCE WRAPPED, incrementing time\n");
+                    ++block.nTime;
+                }
+            }
+            printf("block.nTime = %u \n", block.nTime);
+            printf("block.nNonce = %u \n", block.nNonce);
+            printf("block.GetHash = %s\n", block.GetHash().ToString().c_str());
+        }
+
         block.print();
         assert(hash == hashGenesisBlock);
 
