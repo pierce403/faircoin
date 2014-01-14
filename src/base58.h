@@ -272,10 +272,10 @@ class CBitcoinAddress : public CBase58Data
 public:
     enum
     {
-        PUBKEY_ADDRESS = 14, // Faircoin addresses start with L
-        SCRIPT_ADDRESS = 5,
-        PUBKEY_ADDRESS_TEST = 111,
-        SCRIPT_ADDRESS_TEST = 196,
+        PUBKEY_ADDRESS = 35, // Faircoin addresses start with F
+        SCRIPT_ADDRESS = 40,  // G
+        PUBKEY_ADDRESS_TEST = 95,  // f
+        SCRIPT_ADDRESS_TEST = 100, // g
     };
 
     bool Set(const CKeyID &id) {
@@ -400,8 +400,8 @@ class CBitcoinSecret : public CBase58Data
 public:
     enum
     {
-        PRIVKEY_ADDRESS = CBitcoinAddress::PUBKEY_ADDRESS + 128,
-        PRIVKEY_ADDRESS_TEST = CBitcoinAddress::PUBKEY_ADDRESS_TEST + 128,
+        PRIVKEY_ADDRESS = 38,
+        PRIVKEY_ADDRESS_TEST = 97,
     };
 
     void SetKey(const CKey& vchSecret)

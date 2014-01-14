@@ -36,7 +36,7 @@ CTxMemPool mempool;
 unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
-uint256 hashGenesisBlock("0x95b7df24cbfe0bdb0b58b0ce029a4206fcc53555762cdae1823a6daa43ec3681");
+uint256 hashGenesisBlock("0x3794782c14f4f0f40b5e55a225cf414748c81a5dd1166e410b2a6990beecf83e");
 static CBigNum bnProofOfWorkLimit(~uint256(0) >> 20); // Faircoin: starting difficulty is 1 / 2^12
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
@@ -1078,7 +1078,7 @@ int64 static GetBlockValue(int nHeight, int64 nFees)
     return nSubsidy + nFees;
 }
 
-static const int64 nTargetTimespan = 1 * 24 * 60 * 60; // Faircoin: daily retarget
+static const int64 nTargetTimespan = 60 * 60; // Faircoin: hourly retarget
 static const int64 nTargetSpacing = 10 * 60; // Faircoin: 10 minute blocks
 static const int64 nInterval = nTargetTimespan / nTargetSpacing;
 
@@ -2782,7 +2782,7 @@ bool InitBlockIndex() {
         block.nVersion = 1;
         block.nTime    = 1389606522;
         block.nBits    = 0x1e0ffff0;
-        block.nNonce   = 988543;
+        block.nNonce   = 181434;
 
         if (fTestNet)
         {
