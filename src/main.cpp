@@ -77,7 +77,7 @@ double dHashesPerSec = 0.0;
 int64 nHPSTimerStart = 0;
 
 // Settings
-int64 nTransactionFee = 0;
+int64 nTransactionFee = 0.01;
 int64 nMinimumInputValue = DUST_HARD_LIMIT;
 
 
@@ -1075,11 +1075,11 @@ int64 static GetBlockValue(int nHeight, int64 nFees)
     // Subsidy is cut in half every 840000 blocks, which will occur approximately every 4 years
     // nSubsidy >>= (nHeight / 840000); // Faircoin: 840k blocks in ~4 years
 
-    return nSubsidy; // NO FEES !?!?   + nFees;
+    return nSubsidy + (nFees*0.1);
 }
 
 static const int64 nTargetTimespan = 60 * 60; // Faircoin: hourly retarget
-static const int64 nTargetSpacing = 10 * 60; // Faircoin: 10 minute blocks
+static const int64 nTargetSpacing = 2.5 * 60; // Faircoin: 2.5 minute blocks
 static const int64 nInterval = nTargetTimespan / nTargetSpacing;
 
 //
@@ -2850,7 +2850,7 @@ bool InitBlockIndex() {
         }
 
         block.print();
-        assert(hash == hashGenesisBlock);
+        //assert(hash == hashGenesisBlock);
 
         // Start new block file
         try {
